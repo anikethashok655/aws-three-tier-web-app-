@@ -1,14 +1,19 @@
-# Use an official Node.js 18 Alpine image
-FROM node:18-alpine
-# Set the working directory
+# Stage 1: Build the React app
+FROM node:18 AS builder
 WORKDIR /app
-# Copy package files first to leverage Docker cache
 COPY package*.json ./
-# Install dependencies
 RUN npm install
-# Copy the rest of the application code
 COPY . .
-# Expose the application port
-EXPOSE 4000
-# Command to run the application
-CMD ["node", "index.js"]
+RUN npm run build
+# Stage 2: Serve with NGINX
+FROM nginx:stable-alpine
+# Remove default config
+RUN rm /etc/nginx/conf.d/default.conf
+# Copy custom nginx config to correct location
+COPY nginx.conf /etc/nginx/nginx.conf
+# Copy build output to NGINX web root
+COPY --from=builder /app/build /usr/share/nginx/html
+# Expose port
+EXPOSE 80
+# Start NGINX
+CMD ["nginx", "-g", "daemon off;"]
